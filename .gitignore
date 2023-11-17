@@ -1,0 +1,9 @@
+output
+.idea/
+*.pyc
+.vscode/
+/vendor/
+/uid_convert_data/
+.DS_Store
+.ftt/
+.history/
