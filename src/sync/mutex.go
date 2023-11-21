@@ -103,12 +103,22 @@ func (m *Mutex) lockSlow() {
 			old = m.state
 			continue
 		}
+		// 到了这一步， state的状态可能是：
+		// 1. 锁还没有被释放，锁处于正常状态
+		// 2. 锁还没有被释放， 锁处于饥饿状态
+		// 3. 锁已经被释放， 锁处于正常状态
+		// 4. 锁已经被释放， 锁处于饥饿状态
+		// 并且本gorutine的 awoke可能是true, 也可能是false (其它goutine已经设置了state的woken标识)
+
 		new := old
+		// old 为之前的锁状态
 		// Don't try to acquire starving mutex, new arriving goroutines must queue.
 		if old&mutexStarving == 0 {
+			// 非饥饿模式尝试获取锁
 			new |= mutexLocked
 		}
 		if old&(mutexLocked|mutexStarving) != 0 {
+			// 锁已被其他goroutine获取或者处于饥饿状态，进行等待
 			new += 1 << mutexWaiterShift
 		}
 		// The current goroutine switches mutex to starvation mode.
@@ -116,6 +126,7 @@ func (m *Mutex) lockSlow() {
 		// Unlock expects that starving mutex has waiters, which will not
 		// be true in this case.
 		if starving && old&mutexLocked != 0 {
+			// 如果当前goroutine处于饥饿状态，切锁已被抢占，则设置为饥饿状态
 			new |= mutexStarving
 		}
 		if awoke {
